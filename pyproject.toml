@@ -1,0 +1,11 @@
+[project]
+name = "overfit-hack-kosice"
+version = "0.1.0"
+description = "vyhrame to :)"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.136.0",
+    "python-dotenv>=1.2.2",
+    "uvicorn>=0.44.0",
+]
