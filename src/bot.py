@@ -11,6 +11,7 @@ from config import BOT_TOKEN
 from debt_store import DebtStore
 
 BOT_USERNAME = "hack_kosice_bot"
+BOUNDARY_TEXT = "--- ALL DEBTS BEFORE THIS POINT WERE ALREADY PROCESSED. ONLY EXTRACT NEW DEBTS BELOW. ---"
 TELEGRAM_API = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 logger = logging.getLogger(__name__)
@@ -44,7 +45,29 @@ def collect_normalized_names(messages):
     return sorted(names)
 
 
-def load_photo_message(msg):
+def collect_username_map(messages):
+    username_map = {}
+
+    def visit(msg):
+        if not msg:
+            return
+
+        username = msg.get("username") or msg.get("from", {}).get("username")
+        display_name = resolve_user_name(msg)
+        if username and display_name != "unknown":
+            username_map[username.lower()] = display_name
+
+        reply_to_message = msg.get("reply_to_message")
+        if reply_to_message:
+            visit(reply_to_message)
+
+    for msg in messages:
+        visit(msg)
+
+    return username_map
+
+
+def load_photo_message(msg, username_map=None):
     url = f"{TELEGRAM_API}/getFile"
     params = {"file_id": msg["file_id"]}
 
@@ -61,31 +84,68 @@ def load_photo_message(msg):
     return Message(
         user_name=resolve_user_name(msg),
         text=extracted_text,
-        reply_to=load_text_message(msg.get("reply_to_message")) if "reply_to_message" in msg else None,
+        reply_to=load_text_message(msg.get("reply_to_message"), username_map) if "reply_to_message" in msg else None,
     )
 
-def load_text_message(msg):
+def load_text_message(msg, username_map=None):
     logger.debug("msg: %s", msg)
     return Message(
         user_name=resolve_user_name(msg),
-        text=normalize_mentions(msg.get("text") or "", msg.get("entities")),
-        reply_to=load_text_message(msg.get("reply_to_message")) if "reply_to_message" in msg else None,
+        text=normalize_mentions(msg.get("text") or "", msg.get("entities"), username_map),
+        reply_to=load_text_message(msg.get("reply_to_message"), username_map) if "reply_to_message" in msg else None,
     )
 
 
-def get_chat_history(chat_id, limit=50):
+def message_mentions_bot(msg):
+    text = (msg.get("text") or msg.get("caption") or "").lower()
+    bot_name = BOT_USERNAME.lower()
+    return f"@{bot_name}" in text or bot_name in text
+
+
+def split_messages_for_boundary(raw_messages, current_message_id):
+    non_bot_messages = [msg for msg in raw_messages if not msg.get("from_bot")]
+
+    previous_mention_index = None
+    for index, msg in enumerate(non_bot_messages):
+        if msg.get("message_id") == current_message_id:
+            continue
+        if message_mentions_bot(msg):
+            previous_mention_index = index
+
+    if previous_mention_index is None:
+        return [], non_bot_messages
+
+    return (
+        non_bot_messages[: previous_mention_index + 1],
+        non_bot_messages[previous_mention_index + 1 :],
+    )
+
+
+def build_baml_messages(processed_messages, relevant_messages, username_map=None):
     output = []
-    for msg in db.get_recent_messages(chat_id, limit=limit):
+
+    for msg in processed_messages:
         loaded_message = None
         if msg.get("type") == "text":
-            loaded_message = load_text_message(msg)
+            loaded_message = load_text_message(msg, username_map)
         elif msg.get("type") == "photo":
-            loaded_message = load_photo_message(msg)
+            loaded_message = load_photo_message(msg, username_map)
 
         if loaded_message is not None:
             output.append(loaded_message)
 
-    logger.info("prepared chat history chat_id=%s count=%s", chat_id, len(output))
+    output.append(Message(user_name="System", text=BOUNDARY_TEXT))
+
+    for msg in relevant_messages:
+        loaded_message = None
+        if msg.get("type") == "text":
+            loaded_message = load_text_message(msg, username_map)
+        elif msg.get("type") == "photo":
+            loaded_message = load_photo_message(msg, username_map)
+
+        if loaded_message is not None:
+            output.append(loaded_message)
+
     return output
 
 
@@ -107,10 +167,20 @@ def handle_message(message):
         return
 
     raw_messages = db.get_recent_messages(chat_id)
-    normalized_names = collect_normalized_names(raw_messages)
-    messages = get_chat_history(chat_id)
+    processed_messages, relevant_messages = split_messages_for_boundary(raw_messages, message_id)
+    normalized_names = collect_normalized_names(relevant_messages)
+    username_map = collect_username_map(raw_messages)
+    messages = build_baml_messages(processed_messages, relevant_messages, username_map=username_map)
+    logger.info(
+        "prepared chat history chat_id=%s raw_count=%s processed_count=%s relevant_count=%s baml_count=%s",
+        chat_id,
+        len(raw_messages),
+        len(processed_messages),
+        len(relevant_messages),
+        len(messages),
+    )
 
-    if not messages:
+    if not relevant_messages:
         logger.warning("no recent messages found for chat_id=%s", chat_id)
         send_message(chat_id, "No recent messages found.")
         return
@@ -129,6 +199,14 @@ def handle_message(message):
         len(debts),
         time.monotonic() - start,
     )
+    for debt in debts:
+        logger.info(
+            "extracted debt debtor=%s creditor=%s amount=%s reason=%r",
+            debt.debtor,
+            debt.creditor,
+            debt.amount,
+            debt.reason,
+        )
 
     debt_store.add_debts(debts)
     simplified_debts = debt_store.get_simplified_debts()

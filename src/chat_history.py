@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from datetime import datetime, timezone
 
 from pymongo import MongoClient
@@ -37,7 +38,11 @@ def replace_utf16_span(text: str, offset: int, length: int, replacement: str) ->
     return encoded[:start].decode("utf-16-le") + replacement + encoded[end:].decode("utf-16-le")
 
 
-def normalize_mentions(text: str, entities: list[dict] | None) -> str:
+def normalize_mentions(
+    text: str,
+    entities: list[dict] | None,
+    username_map: dict[str, str] | None = None,
+) -> str:
     normalized = text
     for entity in sorted(entities or [], key=lambda item: item.get("offset", 0), reverse=True):
         if entity.get("type") != "text_mention":
@@ -51,7 +56,13 @@ def normalize_mentions(text: str, entities: list[dict] | None) -> str:
             replacement,
         )
 
-    return normalized
+    def replace_match(match: re.Match[str]) -> str:
+        username = match.group(1)
+        if username_map:
+            return username_map.get(username.lower(), username)
+        return username
+
+    return re.sub(r"(?<!\w)@([A-Za-z0-9_]{5,})", replace_match, normalized)
 
 
 class DataBase:

@@ -3,7 +3,7 @@ client<llm> OpenRouterDebtExtractor {
   options {
     base_url "https://openrouter.ai/api/v1"
     api_key env.OPENROUTER_API_KEY
-    model "openai/gpt-5.4-mini"
+    model "google/gemini-3-flash-preview"
     temperature 0.0
   }
 }
