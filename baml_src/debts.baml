@@ -13,7 +13,7 @@ class Question {
   question string
 }
 
-function ExtractDebts(messages: Message[]) -> Debt[] | Question[] {
+function ExtractDebts(messages: Message[]) -> Debt[] {
   client OpenRouterDebtExtractor
   prompt #"
     {{ _.role("system") }}
@@ -53,6 +53,20 @@ function ExtractImage(receipt: image) -> string {
   "#
 }
 
+function IsTransactionDone(message: Message) -> bool {
+  client OpenRouterDebtExtractor
+  prompt #"
+    {{ _.role("system") }}
+    You are a part of a payment processing system.
+    You see a message that is a reply to a message about a debt.
+    Your task is to determine if the transaction has been done or not.
+    {{ _.role("user") }}
+    Do you think the money has been sent based on this message?
+    {{ message }}
+
+    {{ ctx.output_format }}
+  "#
+}
 
 test ImageReceiptTest {
   functions [ExtractImage]
