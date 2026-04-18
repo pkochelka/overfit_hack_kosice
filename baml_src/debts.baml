@@ -26,13 +26,12 @@ function ExtractDebts(messages: Message[], normalized_names: string[]) -> Debt[]
 
     You are also given a list of normalized known participant names.
     Prefer assigning debtor and creditor names exactly from that list whenever the message likely refers to one of those people.
-    Only use a completely different name if the chat clearly refers to someone not represented by the normalized names.
+    Sometimes the normalized names might be missing. Default to the mentioned name in the message in that case.
 
     Sometimes you will recieve a reply to a message that implies a debt was paid back.
     In that case, add the exact same debt but with the debtor and creditor switched and the same amount.
 
-    Rules:
-    - Repeated debts are allowed. Avoid doing arithmetic by yourself.
+    We will be processing the payments afterwards, so no need to simplify or merge the debts.
 
     {{ _.role("user") }}
     Normalized names:

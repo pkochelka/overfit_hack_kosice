@@ -15,12 +15,19 @@ def get_display_name(user: dict | None) -> str | None:
     if not user:
         return None
 
+    first_name = user.get("first_name")
+    last_name = user.get("last_name")
     username = user.get("username")
+
+    if first_name and last_name:
+        return f"{first_name} {last_name}"
     if username:
         return username
-
-    full_name = " ".join(part for part in [user.get("first_name"), user.get("last_name")] if part)
-    return full_name or None
+    if first_name:
+        return first_name
+    if last_name:
+        return last_name
+    return None
 
 
 def replace_utf16_span(text: str, offset: int, length: int, replacement: str) -> str:
