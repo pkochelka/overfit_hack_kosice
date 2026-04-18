@@ -6,7 +6,7 @@ from baml_py import Image
 
 from baml_client import b
 from baml_client.types import Debt, Message
-from chat_history import DataBase
+from chat_history import DataBase, get_display_name, normalize_mentions
 from config import BOT_TOKEN
 from debt_store import DebtStore
 
@@ -17,6 +17,10 @@ logger = logging.getLogger(__name__)
 
 db = DataBase()
 debt_store = DebtStore()
+
+
+def resolve_user_name(msg):
+    return get_display_name(msg) or get_display_name(msg.get("from")) or "unknown"
 
 
 def load_photo_message(msg):
@@ -34,17 +38,17 @@ def load_photo_message(msg):
     extracted_text = b.ExtractImage(Image.from_url(file_url))
 
     return Message(
-        user_name=msg.get("username") or "unknown",
+        user_name=resolve_user_name(msg),
         text=extracted_text,
         reply_to=load_text_message(msg.get("reply_to_message")) if "reply_to_message" in msg else None,
     )
 
 def load_text_message(msg):
-    logger.debug("msg: " + str(msg))
+    logger.debug("msg: %s", msg)
     return Message(
-        user_name=msg.get("username") or "unknown",
-        text=msg.get("text") or "",
-        reply_to=load_text_message(msg.get("reply_to_message")) if "reply_to_message" in msg else None
+        user_name=resolve_user_name(msg),
+        text=normalize_mentions(msg.get("text") or "", msg.get("entities")),
+        reply_to=load_text_message(msg.get("reply_to_message")) if "reply_to_message" in msg else None,
     )
 
 
