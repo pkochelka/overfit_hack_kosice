@@ -30,7 +30,7 @@ def load_text_message(msg):
     return Message(
         user_name=msg.get("username") or "unknown",
         text=msg.get("text") or "",
-        text=msg.get("reply_to_message") or "Not a reply"
+        reply_to=load_text_message(msg.get("reply_to_message")) if "reply_to_message" in msg else None
     )
 
 
