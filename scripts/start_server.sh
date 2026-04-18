@@ -15,14 +15,19 @@ fi
 : "${BOT_TOKEN:?BOT_TOKEN must be set in .env}"
 : "${WEBHOOK_SECRET:?WEBHOOK_SECRET must be set in .env}"
 
-if [[ -n "${NGROK_AUTHTOKEN:-}" ]]; then
-  ngrok config add-authtoken "$NGROK_AUTHTOKEN" >/dev/null
-fi
-
 MONGO_PID_FILE="$ROOT/.run/mongod.pid"
 APP_PID_FILE="$ROOT/.run/app.pid"
 NGROK_PID_FILE="$ROOT/.run/ngrok.pid"
 NGROK_URL_FILE="$ROOT/.run/ngrok_url.txt"
+NGROK_CONFIG_FILE="$ROOT/.run/ngrok.yml"
+
+if [[ -n "${NGROK_AUTHTOKEN:-}" ]]; then
+  cat > "$NGROK_CONFIG_FILE" <<EOF
+version: "3"
+agent:
+  authtoken: ${NGROK_AUTHTOKEN}
+EOF
+fi
 
 is_pid_running() {
   local pid="$1"
@@ -57,7 +62,7 @@ fi
 if [[ -f "$APP_PID_FILE" ]] && is_pid_running "$(cat "$APP_PID_FILE")"; then
   echo "App already running"
 else
-  nohup env PYTHONPATH=src uv run python src/app.py > "$ROOT/.logs/app.log" 2>&1 &
+  nohup bash -lc 'cd "$0/src" && uv run python app.py' "$ROOT" > "$ROOT/.logs/app.log" 2>&1 &
   echo $! > "$APP_PID_FILE"
   echo "Started Flask app"
 fi
@@ -67,7 +72,11 @@ wait_for_http "http://127.0.0.1:5001/" 30
 if [[ -f "$NGROK_PID_FILE" ]] && is_pid_running "$(cat "$NGROK_PID_FILE")"; then
   echo "ngrok already running"
 else
-  nohup ngrok http 5001 --log=stdout > "$ROOT/.logs/ngrok.log" 2>&1 &
+  if [[ -f "$NGROK_CONFIG_FILE" ]]; then
+    nohup ngrok --config "$NGROK_CONFIG_FILE" http 5001 --log=stdout > "$ROOT/.logs/ngrok.log" 2>&1 &
+  else
+    nohup ngrok http 5001 --log=stdout > "$ROOT/.logs/ngrok.log" 2>&1 &
+  fi
   echo $! > "$NGROK_PID_FILE"
   echo "Started ngrok"
 fi
@@ -95,7 +104,12 @@ PY
 
 if [[ -z "$PUBLIC_URL" ]]; then
   echo "Could not determine ngrok public URL." >&2
-  echo "If ngrok is installed but not authenticated, set NGROK_AUTHTOKEN in .env." >&2
+  if [[ -n "${NGROK_AUTHTOKEN:-}" ]]; then
+    echo "NGROK_AUTHTOKEN was loaded from the environment, but ngrok still failed." >&2
+  else
+    echo "NGROK_AUTHTOKEN is not set." >&2
+    echo "Put NGROK_AUTHTOKEN=... into .env to have the script load it every run." >&2
+  fi
   echo "See .logs/ngrok.log for details." >&2
   exit 1
 fi
@@ -103,6 +117,14 @@ fi
 printf '%s\n' "$PUBLIC_URL" > "$NGROK_URL_FILE"
 
 WEBHOOK_URL="$PUBLIC_URL/webhook/$WEBHOOK_SECRET"
+
+curl -X POST "https://api.telegram.org/bot$BOT_TOKEN/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-domain.com/webhook",
+    "allowed_updates": ["message", "message_reaction"]
+  }'
+  
 curl -fsS "https://api.telegram.org/bot$BOT_TOKEN/setWebhook" \
   --data-urlencode "url=$WEBHOOK_URL" \
   > "$ROOT/.logs/set_webhook.json"

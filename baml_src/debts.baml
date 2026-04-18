@@ -19,7 +19,7 @@ function ExtractDebts(messages: Message[]) -> Debt[] | Question[] {
     {{ _.role("system") }}
     You recieve a chat history between multiple users. Your task is to extract all the debts mentioned in the chat.
     Extract them into a list of debts, where each debt has a debtor, a creditor and an amount.
-    Infer from what they are talking about who owes money to whom and how much.
+    Infer from what they are talking about who owes money to whom and how much. All in
     Only messages since the last tag of the bot are relevant. The messages before that have already been processed.
     Not all messages are relevant for the debts.
 
