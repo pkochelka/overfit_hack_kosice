@@ -1,6 +1,6 @@
-from pymongo import MongoClient
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 
+from pymongo import MongoClient
 
 
 class DataBase:
@@ -35,15 +35,14 @@ class DataBase:
         self.messages_col.insert_one(doc)
 
 
-    def get_recent_messages(self, chat_id, hours_to_look=1):
-        one_hour_ago = datetime.now(timezone.utc) - timedelta(hours=hours_to_look)
+    def get_recent_messages(self, chat_id, limit=50):
+        cursor = (
+            self.messages_col.find({"chat_id": chat_id})
+            .sort("timestamp", -1)
+            .limit(limit)
+        )
 
-        cursor = self.messages_col.find({
-            "chat_id": chat_id,
-            "timestamp": {"$gte": one_hour_ago}
-        }).sort("timestamp", 1)
-
-        return list(cursor)
+        return list(reversed(list(cursor)))
     
     def find_one(self,  pred):
         return self.messages_col.find_one(pred)

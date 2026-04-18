@@ -23,9 +23,9 @@ def load_photo_message(msg):
 def load_text_message(msg):
     return Message(msg.get("username"), msg.get("text"))
 
-def get_chat_history(chat_id):
+def get_chat_history(chat_id, limit=50):
     output = []
-    for msg in db.get_recent_messages(chat_id):
+    for msg in db.get_recent_messages(chat_id, limit=limit):
         if msg.get("type") == "text":
             output.append(load_text_message(msg))
         if msg.get("type") == "photo":
