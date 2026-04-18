@@ -30,6 +30,7 @@ def load_text_message(msg):
     return Message(
         user_name=msg.get("username") or "unknown",
         text=msg.get("text") or "",
+        text=msg.get("reply_to_message") or "Not a reply"
     )
 
 
@@ -87,41 +88,6 @@ def handle_message(message):
     simplified_debts = debt_store.get_simplified_debts()
     logger.info("summarizing debts chat_id=%s simplified_count=%s", chat_id, len(simplified_debts))
     summarize_debts(simplified_debts, chat_id)
-
-
-def handle_reaction(update):
-    reaction = update.get("message_reaction")
-
-    if not reaction:
-        logger.warning("reaction update without message_reaction payload")
-        return
-
-    chat_id = reaction["chat"]["id"]
-    message_id = reaction["message_id"]
-    new_reaction = reaction.get("new_reaction", [])
-    logger.info(
-        "handle_reaction chat_id=%s message_id=%s new_reaction=%s",
-        chat_id,
-        message_id,
-        new_reaction,
-    )
-
-    msg = db.find_one({
-        "chat_id": chat_id,
-        "message_id": message_id,
-        "from_bot": True,
-    })
-
-    if not msg:
-        logger.info("reaction ignored because target bot message was not found")
-        return
-
-    logger.info("reaction matched a bot message")
-    reaction_text = ", ".join(
-        item.get("emoji") or item.get("type", "unknown")
-        for item in new_reaction
-    ) or "reaction"
-    send_message(chat_id, f"Got reaction on bot message: {reaction_text}")
 
 
 def send_message(chat_id, text):
