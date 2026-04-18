@@ -3,3 +3,5 @@
 uv.lock
 
 src/baml_client/
+
+src/__pycache__/

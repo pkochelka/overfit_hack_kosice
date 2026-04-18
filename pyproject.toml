@@ -12,4 +12,5 @@ dependencies = [
     "requests",
     "python-dotenv",
     "baml-py==0.220.0",
+    "pymongo>=4.16.0",
 ]
