@@ -73,7 +73,14 @@ def handle_reaction(update):
     # ignore if it is reaction to other people's messages
     if not msg:
         return
+    
+    parts = text.split()
 
+    creditor = parts[0]
+    debtor = parts[4]
+    amount = float(parts[6])
+    
+    debt_store.add_debt(Debt(creditor, debtor, -amount))
 
     # TODO volaj najeaky analyzer
 
