@@ -9,7 +9,11 @@ class Debt {
   amount float @description(#"The amount of money owed"#)
 }
 
-function ExtractDebts(messages: Message[]) -> Debt[] {
+class Question {
+  question string
+}
+
+function ExtractDebts(messages: Message[]) -> Debt[] | Question[] {
   client OpenRouterDebtExtractor
   prompt #"
     {{ _.role("system") }}
