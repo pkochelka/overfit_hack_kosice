@@ -12,6 +12,7 @@ class DataBase:
         doc = {
             "chat_id": message["chat"]["id"],
             "user_id": message["from"]["id"],
+            "from_bot": False,
             "username": message["from"].get("username"),
             "timestamp": datetime.now(timezone.utc),
         }
@@ -43,3 +44,6 @@ class DataBase:
         }).sort("timestamp", 1)
 
         return list(cursor)
+    
+    def find_one(self,  pred):
+        return self.messages_col.find_one(pred)

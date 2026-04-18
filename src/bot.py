@@ -25,15 +25,41 @@ def handle_message(message):
     db.save_message(message)
     text = message.get("text", "")
 
-    # If was not tagged, stop
-    if f"@{BOT_USERNAME.lower()}" not in text.lower():
-        return
-
-    # Otherwise recap history
-    chat_id = message["chat"]["id"]
-    return get_chat_history(chat_id)
+    # If tagged, recap history
+    if f"@{BOT_USERNAME.lower()}" in text.lower():
+        chat_id = message["chat"]["id"]
+        return get_chat_history(chat_id)
+    
 
     #TODO remove all database entries?
+    # TODO volaj najeaky analyzer
+
+def handle_reaction(update):
+    reaction = update.get("message_reaction")
+
+    if not reaction:
+        return
+    
+    chat_id = reaction["chat"]["id"]
+    message_id = reaction["message_id"]
+    user_id = reaction["user"]["id"]
+
+    msg = db.find_one({
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "from_bot": True
+    })
+
+    # ignore if it is reaction to other people's messages
+    if not msg:
+        return
+
+    # TODO volaj najeaky analyzer
+    emojis = [
+        r.get("emoji")
+        for r in reaction.get("reaction", [])
+        if r.get("type") == "emoji"
+    ]
 
     
 def send_message(chat_id, text):
