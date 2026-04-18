@@ -11,7 +11,7 @@ db = DataBase()
 
 def load_photo_message(msg):
     url = f"{TELEGRAM_API}/getFile"
-    params = {"file_id": file_id}
+    params = {"file_id": msg["file_id"]}
 
     response = requests.get(url, params=params).json()
 
