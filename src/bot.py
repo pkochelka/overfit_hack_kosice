@@ -2,6 +2,7 @@ import logging
 import time
 
 import requests
+from baml_py import Image
 
 from baml_client import b
 from baml_client.types import Debt, Message
@@ -22,12 +23,21 @@ def load_photo_message(msg):
     url = f"{TELEGRAM_API}/getFile"
     params = {"file_id": msg["file_id"]}
 
-    response = requests.get(url, params=params).json()
+    response = requests.get(url, params=params, timeout=10).json()
 
-    if response.get("ok"):
-        return Message(msg.get("username"), b.ExtractImage(response["result"]["file_path"]))
+    if not response.get("ok"):
+        logger.warning("getFile failed for file_id=%s body=%s", msg.get("file_id"), response)
+        return None
 
-    return None
+    file_path = response["result"]["file_path"]
+    file_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
+    extracted_text = b.ExtractImage(Image.from_url(file_url))
+
+    return Message(
+        user_name=msg.get("username") or "unknown",
+        text=extracted_text,
+        reply_to=load_text_message(msg.get("reply_to_message")) if "reply_to_message" in msg else None,
+    )
 
 def load_text_message(msg):
     logger.debug("msg: " + str(msg))
