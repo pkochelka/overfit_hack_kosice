@@ -8,6 +8,7 @@ class Debt {
   debtor string @description(#"The person who owes money"#)
   creditor string @description(#"The person who should receive money"#)
   amount float @description(#"The amount of money owed"#)
+  currency string @description(#"Currency of the debt, preferably as an ISO 4217 code like EUR, USD, CZK, or GBP"#)
   reason string? @description(#"Short reason or evidence from the chat for why this debt was extracted"#)
 }
 
@@ -39,6 +40,10 @@ function ExtractDebts(messages: Message[], normalized_names: string[]) -> Debt[]
     add the exact same debt but with the debtor and creditor switched and the same amount.
 
     We will be processing the payments afterwards, so no need to simplify or merge the debts.
+    Different currencies must stay separate.
+    Always include the currency for each extracted debt.
+    Prefer ISO 4217 currency codes such as EUR, USD, CZK, or GBP.
+    If the chat uses a clear currency symbol or word, convert it to the corresponding ISO 4217 code when possible.
     Always include a short reason for each extracted debt, based on the relevant message(s).
 
     {{ _.role("user") }}

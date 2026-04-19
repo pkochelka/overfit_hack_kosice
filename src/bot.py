@@ -218,10 +218,11 @@ def handle_message(message):
     )
     for debt in debts:
         logger.info(
-            "extracted debt debtor=%s creditor=%s amount=%s reason=%r",
+            "extracted debt debtor=%s creditor=%s amount=%s currency=%s reason=%r",
             debt.debtor,
             debt.creditor,
             debt.amount,
+            debt.currency,
             debt.reason,
         )
 
@@ -249,13 +250,14 @@ def send_message(chat_id, text):
 
 def demand_payment(debt: Debt, chat_id):
     logger.info(
-        "demand_payment chat_id=%s debtor=%s creditor=%s amount=%s",
+        "demand_payment chat_id=%s debtor=%s creditor=%s amount=%s currency=%s",
         chat_id,
         debt.debtor,
         debt.creditor,
         debt.amount,
+        debt.currency,
     )
-    text = f"{debt.debtor} owes {debt.creditor} {debt.amount:.2f}"
+    text = f"{debt.debtor} owes {debt.creditor} {debt.amount:.2f} {debt.currency}"
     send_message(chat_id, text)
 
 
