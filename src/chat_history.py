@@ -22,10 +22,10 @@ def get_display_name(user: dict | None) -> str | None:
 
     if first_name and last_name:
         return f"{first_name} {last_name}"
-    if username:
-        return username
     if first_name:
         return first_name
+    if username:
+        return username
     if last_name:
         return last_name
     return None

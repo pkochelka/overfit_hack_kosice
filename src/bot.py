@@ -30,7 +30,7 @@ def format_name_for_llm(msg):
 
     if name == "unknown":
         return None, False
-    if username and username.lower() != name.lower():
+    if username and name.lower() != username.lower():
         return f"{name} (@{username})", True
     return name, False
 
@@ -44,7 +44,8 @@ def collect_normalized_names(messages):
 
         formatted_name, has_username = format_name_for_llm(msg)
         if formatted_name is not None:
-            key = resolve_user_name(msg).lower()
+            username = msg.get("username") or msg.get("from", {}).get("username") or ""
+            key = f"{resolve_user_name(msg).lower()}|{username.lower()}"
             existing = names.get(key)
             if existing is None or (has_username and "(@" not in existing):
                 names[key] = formatted_name
@@ -67,8 +68,8 @@ def collect_username_map(messages):
             return
 
         username = msg.get("username") or msg.get("from", {}).get("username")
-        display_name = resolve_user_name(msg)
-        if username and display_name != "unknown":
+        display_name, _ = format_name_for_llm(msg)
+        if username and display_name is not None:
             username_map[username.lower()] = display_name
 
         reply_to_message = msg.get("reply_to_message")
